@@ -1,52 +1,33 @@
-<nav class="navbar navbar-expand-lg bg-body-tertiary">
+<nav class="navbar navbar-expand tv-nav">
   <div class="container">
-    <div class="collapse navbar-collapse">
-      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+    <a class="navbar-brand" href="{{ url_for('main.index') }}"><span class="tv-logo"><i class="bi bi-shield-lock-fill"></i></span> Trivialis</a>
+    <ul class="navbar-nav me-auto">
+      {% if current_user and current_user.is_authenticated %}
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint in ('story.stories', 'story.story', 'story.certificate') %}active{% endif %}" href="{{ url_for('story.stories') }}">Geschichten</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if request.endpoint == 'story.leaderboard' %}active{% endif %}" href="{{ url_for('story.leaderboard') }}">Rangliste</a>
+      </li>
+      {% endif %}
+    </ul>
+    <ul class="navbar-nav align-items-center gap-2">
+      {% if current_user and current_user.is_authenticated %}
+        {% if current_user.has_role('Admin') %}
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('main.index') }}">{{ _('Trivialis') }}</a>
-        </li>
-        {% if current_user.is_authenticated %}
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('story.stories') }}">{{ _('Stories') }}</a>
-        </li>
-        {% endif %}
-      </ul>
-      <ul class="navbar-nav mb-2 mb-lg-0">
-        <li class="nav-item dropdown">
-          <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-            <i class="bi bi-translate"></i>
-          </a>
-          <ul class="dropdown-menu">
-            {% for language in languages %}
-            <li>
-              <a class="dropdown-item" href="?lang={{ language.isoCode }}">
-                <span class="fi fi-{{ language.icon }}"></span> {{ language.name }}
-              </a>
-            </li>
-            {% endfor %}
-          </ul>
-        </li>
-        {% if current_user.is_authenticated %}
-        {% if 'Admin' in current_user.roles %}
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('admin.admin') }}">{{ _('Admin-Panel') }}</a>
+          <a class="nav-link" href="{{ url_for('admin.admin') }}">Admin</a>
         </li>
         {% endif %}
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('profile.profile') }}">{{ _('Profile') }}</a>
+          <span class="tv-points" title="Deine Punkte"><i class="bi bi-star-fill"></i> <span id="my-points">{{ my_points or 0 }}</span></span>
+        </li>
+        <li class="nav-item d-none d-sm-block">
+          <span class="tv-user"><i class="bi bi-person"></i> {{ current_user.username }}</span>
         </li>
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('security.logout')  }}">{{ _fsdomain('Logout') }}</a>
-        </li>
-      {% else %}
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('security.login') }}">{{ _fsdomain('Login') }}</a>
-        </li>
-        <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('security.register') }}">{{ _fsdomain('Register') }}</a>
+          <a class="nav-link" href="{{ url_for('security.logout') }}">Abmelden</a>
         </li>
       {% endif %}
-      </ul>
-    </div>
+    </ul>
   </div>
 </nav>

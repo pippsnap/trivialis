@@ -1,20 +1,48 @@
 {% extends "base.html" %}
+{% block title %}Geschichten{% endblock %}
 {% block content %}
-<div class="container mt-4">
-  <h1 class="mb-4">{{ _('Wähle eine Geschichte aus') }}</h1>
-  <div class="row row-cols-1 row-cols-md-3 g-4">
-    {% for story in stories %}
-    <div class="col">
-      <div class="card h-100">
-        <div class="card-header">
-          <h2 class="card-title h5">{{ story.name }}</h2>
+<div class="container py-5">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+    <div>
+      <span class="tv-eyebrow mb-2">Geschichten</span>
+      <h1 class="fw-bold mb-2">Wähle eine Geschichte</h1>
+      <div class="d-flex align-items-center gap-3">
+        <div class="progress flex-grow-1" style="height: 8px; width: 220px;" role="progressbar" aria-label="Geschaffte Geschichten">
+          <div class="progress-bar bg-success" style="width: {{ (done|length / stories|length * 100) if stories else 0 }}%"></div>
         </div>
-        <div class="card-body d-flex flex-column">
-          <p class="card-text flex-grow-1">{{ story.description }}</p>
-          <a class="btn btn-primary mt-auto" href="{{ url_for('story.story', story_id=story.id) }}">{{ _('Auswählen') }}</a>
-        </div>
+        <span class="small tv-muted text-nowrap"><strong class="text-body">{{ done|length }}</strong> von {{ stories|length }} geschafft</span>
       </div>
     </div>
+    {% if done %}
+    <a class="btn btn-dark-soft btn-lg" href="{{ url_for('story.certificate') }}"><i class="bi bi-award me-1"></i> Meine Urkunde</a>
+    {% endif %}
+  </div>
+
+  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+    {% for story in stories %}
+    {% set c = cover(story) %}
+    <div class="col">
+      <a class="story-card h-100 text-decoration-none {% if story.id in done %}is-done{% endif %}" href="{{ url_for('story.story', story_id=story.id) }}">
+        <div class="story-cover" style="--cover: {{ c.color }}">
+          <span class="story-cover-num">{{ '%02d' % loop.index }}</span>
+          <span class="story-cover-icon"><i class="bi {{ c.icon }}"></i></span>
+          {% if story.id in done %}<span class="story-cover-badge"><i class="bi bi-check-lg"></i> Geschafft</span>{% endif %}
+        </div>
+        <div class="card-body">
+          <h2 class="h5 fw-bold mb-2">{{ story.name }}</h2>
+          <p class="tv-muted mb-0">{{ story.description }}</p>
+        </div>
+        <div class="story-card-footer">
+          {% if story.id in done %}
+          <span class="btn btn-outline-success w-100 story-card-cta">Nochmals spielen</span>
+          {% else %}
+          <span class="btn btn-primary w-100 story-card-cta">Starten</span>
+          {% endif %}
+        </div>
+      </a>
+    </div>
+    {% else %}
+    <p>Noch keine Geschichten vorhanden.</p>
     {% endfor %}
   </div>
 </div>

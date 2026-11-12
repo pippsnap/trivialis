@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+{% block title %}Rangliste{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-end gap-3 mb-4">
+    <div>
+      <span class="tv-eyebrow mb-2">Rangliste <span id="live" class="lb-live ms-2">Live</span></span>
+      <h1 class="fw-bold mb-1">Wer ist der beste Internetdetektiv?</h1>
+      <p class="tv-muted mb-0">Jede gelöste Frage zählt sofort: 10 Punkte im ersten Versuch, 5 im zweiten, 2 danach.</p>
+    </div>
+    {% if current_user.has_role('Admin') %}
+    <form method="post" action="{{ url_for('story.leaderboard_reset') }}"
+          onsubmit="return confirm('Alle Punkte und gespeicherten Antworten löschen? Das kann nicht rückgängig gemacht werden.');">
+      <button class="btn btn-outline-secondary"><i class="bi bi-arrow-counterclockwise me-1"></i> Zurücksetzen</button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div id="empty" class="tv-card p-5 text-center d-none">
+    <p class="fs-5 fw-bold mb-1">Noch keine Punkte</p>
+    <p class="tv-muted mb-0">Sobald jemand die erste Szene löst, erscheint hier die Rangliste.</p>
+  </div>
+
+  <div id="board" class="d-none">
+    <div id="podium" class="lb-podium mb-4"></div>
+    <div class="row g-4">
+      <div class="col-lg-8">
+        <div class="tv-card overflow-hidden">
+          <div class="table-responsive">
+            <table class="lb-table">
+              <thead>
+                <tr><th>Rang</th><th>Name</th><th class="d-none d-sm-table-cell">Fortschritt</th><th class="text-end">Geschichten</th><th class="text-end">Punkte</th></tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      <div class="col-lg-4">
+        <div class="tv-card overflow-hidden">
+          <div class="px-3 py-2 border-bottom fw-bold small text-uppercase tv-muted" style="letter-spacing: .06em;">Gerade gelöst</div>
+          <ul id="feed" class="lb-feed"></ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  const dataUrl = {{ url_for('story.leaderboard_data')|tojson }};
+  const $ = (id) => document.getElementById(id);
+  let lastPoints = null;   // Punkte pro Kind beim letzten Laden
+  let lastEventKey = null; // neuestes Ereignis beim letzten Laden
+
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+  function icon(name) { return el('i', 'bi ' + name); }
+
+  function ago(sec) {
+    if (sec < 10) return 'gerade eben';
+    if (sec < 60) return 'vor ' + sec + ' Sek.';
+    if (sec < 3600) return 'vor ' + Math.floor(sec / 60) + ' Min.';
+    return 'vor ' + Math.floor(sec / 3600) + ' Std.';
+  }
+
+  function render(data) {
+    const players = data.players;
+    $('empty').classList.toggle('d-none', players.length > 0);
+    $('board').classList.toggle('d-none', players.length === 0);
+
+    // Podest (Top 3)
+    const podium = $('podium');
+    podium.replaceChildren();
+    players.slice(0, 3).forEach((p) => {
+      const card = el('div', 'lb-podium-card' + (p.rank === 1 ? ' is-first' : ''));
+      const top = el('div', 'd-flex justify-content-between align-items-start');
+      top.append(el('span', 'lb-medal r' + p.rank, p.rank));
+      top.append(el('span', 'small tv-muted fw-semibold', p.stories + ' / ' + data.total_stories + ' Geschichten'));
+      const pts = el('div', 'd-flex align-items-baseline gap-2 mt-2');
+      pts.append(el('span', 'lb-podium-points', p.points), el('span', 'tv-muted fw-semibold', 'Punkte'));
+      const name = el('div', 'lb-podium-name', p.name);
+      if (p.label) name.append(el('span', 'lb-label', p.label));
+      card.append(top, name, pts);
+      podium.append(card);
+    });
+
+    // Tabelle
+    const rows = $('rows');
+    rows.replaceChildren();
+    const max = data.total_scenes * 10 || 1;
+    players.forEach((p) => {
+      const tr = el('tr');
+      if (p.id === data.me) tr.classList.add('is-me');
+      if (lastPoints && lastPoints[p.id] !== p.points) tr.classList.add('is-new');
+      const bar = el('div', 'lb-bar');
+      const fill = el('span');
+      fill.style.width = Math.min(100, p.points / max * 100) + '%';
+      bar.append(fill);
+      const progress = el('td', 'd-none d-sm-table-cell');
+      progress.append(bar);
+      const nameCell = el('td', 'lb-name', p.name);
+      if (p.label) nameCell.append(el('span', 'lb-label', p.label));
+      tr.append(el('td', 'lb-rank', p.rank), nameCell, progress,
+                el('td', 'text-end', p.stories), el('td', 'lb-points', p.points));
+      rows.append(tr);
+    });
+    lastPoints = Object.fromEntries(players.map((p) => [p.id, p.points]));
+
+    // Live-Ticker
+    const feed = $('feed');
+    feed.replaceChildren();
+    const newestKey = data.events.length ? data.events[0].name + data.events[0].scene : null;
+    let isNew = lastEventKey !== null;
+    data.events.forEach((e) => {
+      if (e.name + e.scene === lastEventKey) isNew = false;
+      const li = el('li', isNew ? 'is-new' : '');
+      const ic = el('span', 'lb-feed-icon');
+      ic.append(icon('bi-check-lg'));
+      const body = el('div', 'flex-grow-1');
+      const line = el('div');
+      line.append(el('strong', null, e.name), document.createTextNode(' hat «' + e.scene + '» gelöst'));
+      body.append(line, el('div', 'small tv-muted', e.story + ' · ' + ago(e.seconds_ago)));
+      li.append(ic, body, el('span', 'fw-bold text-success text-nowrap', '+' + e.points));
+      feed.append(li);
+    });
+    if (!data.events.length) feed.append(el('li', 'tv-muted', 'Noch nichts gelöst.'));
+    lastEventKey = newestKey;
+  }
+
+  async function load() {
+    try {
+      const res = await fetch(dataUrl, { cache: 'no-store' });
+      if (!res.ok) throw new Error(res.status);
+      render(await res.json());
+      $('live').classList.remove('is-offline');
+      $('live').textContent = 'Live';
+    } catch (e) {
+      $('live').classList.add('is-offline');
+      $('live').textContent = 'Verbindung unterbrochen';
+    }
+  }
+
+  // Alle 2 Sekunden aktualisieren – und sofort, wenn man zum Tab zurückkehrt
+  let busy = false;
+  async function tick() {
+    if (busy) return;
+    busy = true;
+    try { await load(); } finally { busy = false; }
+  }
+  tick();
+  setInterval(tick, 2000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tick(); });
+})();
+</script>
+{% endblock %}

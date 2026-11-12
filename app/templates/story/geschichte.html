@@ -1,79 +1,336 @@
 {% extends "base.html" %}
+{% block title %}{{ story.name }}{% endblock %}
 {% block content %}
-<div class="container mt-4">
-  <h1 class="mb-4">{{ story.name }}</h1>
-  <h2 class="mb-3">{{ _('Tasks') }}</h2>
-  <div class="row row-cols-1 row-cols-md-3 g-4">
-    {% for task in tasks %}
-      <div class="col">
-        <div class="card h-100">
-          <div class="card-body d-flex flex-column">
-            <h5 class="card-title mb-3">{{ task.name }}</h5>
-            <span class="badge bg-primary mb-3">{{ task.points }} Punkte</span>
-            <p class="card-text flex-grow-1 mb-4">{{ task.description|truncate(100) }}</p>
-            <div class="mt-auto">
-              <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modal{{ task.id }}">Details</button>
-            </div>
-          </div>
-        </div>
-      </div>
+<div class="container py-4 py-md-5" style="--cover: {{ cover.color }}">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <a class="link-secondary text-decoration-none small fw-semibold" href="{{ url_for('story.stories') }}"><i class="bi bi-arrow-left"></i> Alle Geschichten</a>
 
-      <div class="modal fade" id="modal{{ task.id }}" tabindex="-1" aria-labelledby="modalLabel{{ task.id }}" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="modalLabel{{ task.id }}">{{ task.name }}</h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              {% if task.type == 'read' %}
-                <p>{{ task.description }}</p>
-                {% if task.read_text %}
-                  <div class="read-content mt-3">
-                    <h6>Lesetext:</h6>
-                    <p>{{ task.read_text }}</p>
-                  </div>
-                {% endif %}
-                <strong>Punkte: {{ task.points }}</strong>
-                <div class="d-flex justify-content-between mt-3">
-                  <form method="POST" action="{{ url_for('story.answer_question', story_id=story.id, task_id=task.id) }}">
-                    <button type="submit" class="btn btn-primary">Gelesen</button>
-                  </form>
-                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zurück</button>
-                </div>
-              {% elif task.type == 'multiple_choice' %}
-                <p>{{ task.description }}</p>
-                <form method="POST" action="{{ url_for('story.answer_question', story_id=story.id, task_id=task.id) }}">
-                  {% for answer in task.answers %}
-                    <div class="form-check mb-2">
-                      <input class="form-check-input" type="radio" name="answer" id="answer{{ answer.id }}" value="{{ answer.id }}">
-                      <label class="form-check-label" for="answer{{ answer.id }}">
-                        {{ answer.text }}
-                      </label>
-                    </div>
-                  {% endfor %}
-                  <div class="d-flex justify-content-between mt-3">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Zurück</button>
-                    <button type="submit" class="btn btn-primary">Eingeben</button>
-                  </div>
-                </form>
-              {% else %}
-                <p>Unbekannter Aufgabentyp: {{ task.type }}</p>
-              {% endif %}
-            </div>
+      <!-- Intro -->
+      <section id="intro" class="tv-panel mt-3 overflow-hidden">
+        <div class="story-cover story-cover-lg" style="--cover: {{ cover.color }}">
+          <span class="story-cover-icon"><i class="bi {{ cover.icon }}"></i></span>
+        </div>
+        <div class="card-body p-4 p-md-5 text-center">
+          <h1 class="fw-bold mb-3">{{ story.name }}</h1>
+          <p class="fs-5 tv-muted mx-auto" style="max-width: 36rem;">{{ story.description }}</p>
+          {% if scenes %}
+          <p class="small tv-muted mb-4">{{ scenes|length }} Szenen · Bei jeder Szene entscheidest du, was passiert.</p>
+          <button id="start" type="button" class="btn btn-primary btn-lg px-5">Geschichte starten <i class="bi bi-arrow-right ms-1"></i></button>
+          {% else %}
+          <div class="alert alert-info">Diese Geschichte hat noch keine Szenen. Wähle bitte eine andere Geschichte.</div>
+          <a class="btn btn-primary btn-lg" href="{{ url_for('story.stories') }}">Zurück zur Übersicht</a>
+          {% endif %}
+        </div>
+      </section>
+
+      <!-- Szene -->
+      <section id="scene" class="tv-panel mt-3 d-none">
+        <div class="card-body p-4 p-md-5">
+          <div class="d-flex justify-content-between align-items-center small tv-muted mb-2">
+            <span id="scene-counter" class="fw-semibold"></span>
+            <span><i class="bi {{ cover.icon }}" style="color: {{ cover.color }}"></i> {{ story.name }}</span>
+          </div>
+          <div id="steps" class="tv-steps mb-4" aria-hidden="true"></div>
+          <h2 id="scene-title" class="fw-bold h3 mb-3"></h2>
+          <p id="scene-text" class="story-text mb-0"></p>
+          <div id="scene-visual" class="scene-visual"></div>
+          <p id="scene-question" class="fs-5 fw-bold mt-4 mb-3"></p>
+          <div id="answers" class="d-grid gap-2"></div>
+          <div id="feedback" class="mt-4" aria-live="polite"></div>
+          <div class="text-end mt-2">
+            <button id="next" class="btn btn-primary btn-lg d-none">Weiter <i class="bi bi-arrow-right ms-1"></i></button>
           </div>
         </div>
-      </div>
-    {% endfor %}
+      </section>
+
+      <!-- Ende -->
+      <section id="end" class="tv-panel mt-3 d-none">
+        <div class="card-body p-4 p-md-5">
+          <div class="text-center mb-4">
+            <span class="tv-result-icon mb-3"><i class="bi bi-check-lg"></i></span>
+            <h2 class="fw-bold">Geschafft!</h2>
+            <p id="end-points" class="mb-2"></p>
+            <p class="fs-5 tv-muted mb-0">Das hast du in dieser Geschichte gelernt:</p>
+          </div>
+          <ul id="lessons" class="list-unstyled lesson-list mb-4"></ul>
+          <div class="d-flex flex-column flex-sm-row gap-2 justify-content-center">
+            <a class="btn btn-primary btn-lg" href="{{ url_for('story.stories') }}">Nächste Geschichte wählen</a>
+            <button id="restart" class="btn btn-outline-secondary btn-lg">Nochmals spielen</button>
+          </div>
+        </div>
+      </section>
+    </div>
   </div>
 </div>
+<div id="confetti" aria-hidden="true"></div>
 
+<script id="scene-data" type="application/json">{{ scenes|tojson }}</script>
 <script>
-  document.addEventListener('DOMContentLoaded', function() {
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-      return new bootstrap.Tooltip(tooltipTriggerEl)
-    })
+(function () {
+  const scenes = JSON.parse(document.getElementById('scene-data').textContent);
+  if (!scenes.length) return;
+  const answerUrl = {{ url_for('story.answer_question', story_id=story.id, task_id=0)|tojson }}.replace('/task/0/', '/task/__ID__/');
+  const $ = (id) => document.getElementById(id);
+  let index = 0;
+
+  function show(section) {
+    ['intro', 'scene', 'end'].forEach((id) => $(id).classList.toggle('d-none', id !== section));
+    window.scrollTo({ top: 0 });
+  }
+
+  // Hilfsfunktion: Element mit Klasse und Text (immer als Text, nie als HTML)
+  function el(tag, cls, text) {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text !== undefined && text !== null) e.textContent = text;
+    return e;
+  }
+  function icon(name) { return el('i', 'bi ' + name); }
+
+  // ---------- Bilder zu den Szenen ----------
+  const visuals = {
+    sms(v) {
+      const phone = el('div', 'mock-phone');
+      const head = el('div', 'mock-phone-head');
+      head.append(icon('bi-chat-left-text'), el('span', 'fw-semibold', v.from || 'SMS'));
+      phone.append(head, el('div', 'mock-time', 'Heute, 07:42'), el('div', 'mock-bubble', v.text));
+      return phone;
+    },
+    chat(v) {
+      const phone = el('div', 'mock-phone');
+      const head = el('div', 'mock-phone-head');
+      head.append(el('span', 'mock-avatar', (v.name || '?').trim().charAt(0).toUpperCase()), el('span', 'fw-bold', v.name));
+      phone.append(head);
+      (v.messages || []).forEach(([who, text]) => {
+        const b = el('div', 'mock-bubble');
+        b.append(el('div', 'mock-sender', who), el('div', null, text));
+        phone.append(b);
+      });
+      return phone;
+    },
+    email(v) {
+      const box = el('div', 'mock-window');
+      const bar = el('div', 'mock-window-bar');
+      bar.append(icon('bi-envelope'), el('span', null, 'Posteingang'));
+      const body = el('div', 'mock-window-body');
+      body.append(el('div', 'small tv-muted', 'Von: ' + v.from), el('div', 'fw-bold my-1', v.subject), el('div', null, v.text));
+      box.append(bar, body);
+      return box;
+    },
+    browser(v) {
+      const box = el('div', 'mock-window');
+      const bar = el('div', 'mock-window-bar');
+      const dots = el('span', 'mock-dots');
+      dots.append(el('i'), el('i'), el('i'));
+      const url = el('div', 'mock-url' + (v.danger ? ' is-danger' : ''));
+      url.append(icon(v.danger ? 'bi-exclamation-triangle-fill' : 'bi-lock-fill'), document.createTextNode(' ' + v.url));
+      bar.append(dots, url);
+      const body = el('div', 'mock-window-body text-center');
+      body.append(el('div', 'fw-bold fs-5 mb-2', v.title), el('div', null, v.text));
+      box.append(bar, body);
+      return box;
+    },
+    popup(v) {
+      const box = el('div', 'mock-popup');
+      const ic = el('div', 'mock-popup-icon');
+      ic.append(icon(v.icon || 'bi-info-circle'));
+      box.append(ic, el('div', 'fw-bold fs-5', v.title), el('div', 'mt-2 tv-muted', v.text));
+      const btns = el('div', 'mock-popup-buttons');
+      (v.buttons || []).forEach((b, i, arr) => btns.append(el('span', 'mock-btn' + (i === arr.length - 1 ? ' primary' : ''), b)));
+      box.append(btns);
+      return box;
+    },
+    post(v) {
+      const box = el('div', 'mock-post');
+      const head = el('div', 'mock-post-head');
+      head.append(el('span', 'mock-avatar', (v.user || '?').charAt(0).toUpperCase()), el('span', 'fw-bold', v.user));
+      const img = el('div', 'mock-post-image');
+      img.append(icon('bi-image'), el('span', null, v.caption || 'Foto'));
+      box.append(head, img, el('div', 'px-3 pt-3 pb-1', v.text), el('div', 'px-3 pb-3 small tv-muted', v.meta));
+      return box;
+    },
+    video(v) {
+      const box = el('div', 'mock-video');
+      const screen = el('div', 'mock-video-screen');
+      if (/live/i.test(v.title)) screen.append(el('span', 'mock-video-live', 'LIVE'));
+      screen.append(icon('bi-play-circle'));
+      box.append(screen, el('div', 'fw-bold mt-2', v.title), el('div', 'small tv-muted', v.channel + ' · ' + v.views));
+      return box;
+    },
+    map(v) {
+      const box = el('div', 'mock-map');
+      const pin = el('div', 'mock-map-pin');
+      pin.append(icon('bi-geo-alt-fill'));
+      box.append(el('div', 'mock-map-title', v.title), pin, el('div', 'mock-map-label', v.text));
+      return box;
+    },
+    call(v) {
+      const box = el('div', 'mock-call');
+      const av = el('div', 'mock-call-avatar');
+      av.append(icon('bi-person-fill'));
+      const btns = el('div', 'mock-call-buttons');
+      const no = el('span', 'mock-call-btn no'); no.append(icon('bi-telephone-x-fill'));
+      const yes = el('span', 'mock-call-btn yes'); yes.append(icon('bi-telephone-fill'));
+      btns.append(no, yes);
+      box.append(av, el('div', 'fs-4 fw-bold', v.name), el('div', 'small opacity-75', v.text), btns);
+      return box;
+    },
+  };
+
+  function renderVisual(v) {
+    const box = $('scene-visual');
+    box.replaceChildren();
+    if (v && visuals[v.type]) {
+      const fig = el('figure', 'scene-figure');
+      const note = el('figcaption', 'scene-figure-note');
+      note.append(icon('bi-eye'), document.createTextNode(' Nachgestellt – nur zum Anschauen'));
+      fig.append(visuals[v.type](v), note);
+      box.append(fig);
+    }
+  }
+
+  function renderSteps() {
+    const box = $('steps');
+    box.replaceChildren();
+    scenes.forEach((_, i) => box.append(el('span', i < index ? 'is-done' : i === index ? 'is-current' : '')));
+  }
+
+  function feedback(kind, iconName, title, text, extra) {
+    const box = el('div', 'tv-feedback is-' + kind);
+    const body = el('div');
+    body.append(el('div', 'tv-feedback-title', title), el('div', null, text));
+    if (extra) body.append(el('div', 'mt-2 fw-semibold', extra));
+    box.append(icon(iconName), body);
+    return box;
+  }
+
+  let storyPoints = 0;
+
+  // Antwort speichern; der Server meldet, wie viele Punkte es dafür gab
+  function save(scene, answer) {
+    return fetch(answerUrl.replace('__ID__', scene.id), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer: answer.id }),
+    }).then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  }
+
+  function showPoints(result, feedbackBox) {
+    if (!result) return;
+    const nav = document.getElementById('my-points');
+    if (nav) {
+      nav.textContent = result.total;
+      if (result.points) {
+        nav.parentElement.classList.add('is-bumped');
+        setTimeout(() => nav.parentElement.classList.remove('is-bumped'), 1200);
+      }
+    }
+    if (result.points && feedbackBox) {
+      storyPoints += result.points;
+      const badge = el('span', 'tv-points-gain');
+      badge.append(icon('bi-star-fill'), document.createTextNode(' +' + result.points + ' Punkte'));
+      feedbackBox.querySelector('.tv-feedback-title').append(badge);
+    }
+  }
+
+  function renderScene() {
+    const scene = scenes[index];
+    $('scene-counter').textContent = 'Szene ' + (index + 1) + ' von ' + scenes.length;
+    renderSteps();
+    $('scene-title').textContent = scene.title;
+    $('scene-text').textContent = scene.text;
+    $('scene-text').classList.toggle('d-none', !scene.text);
+    renderVisual(scene.visual);
+    $('scene-question').textContent = scene.question;
+    $('feedback').replaceChildren();
+    $('next').classList.add('d-none');
+    $('next').innerHTML = (index === scenes.length - 1 ? 'Abschliessen' : 'Weiter') + ' <i class="bi bi-arrow-right ms-1"></i>';
+
+    const box = $('answers');
+    box.replaceChildren();
+    // Antworten zufällig mischen, damit die richtige nicht immer an derselben Stelle steht
+    const shuffled = scene.answers.slice();
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+    shuffled.forEach((answer, i) => {
+      const btn = el('button', 'btn btn-answer text-start');
+      btn.type = 'button';
+      btn.append(el('span', 'answer-letter', String.fromCharCode(65 + i)), el('span', null, answer.text));
+      btn.addEventListener('click', () => choose(scene, answer, btn));
+      box.append(btn);
+    });
+    // Szene ohne Antworten (reiner Lesetext): direkt weiter
+    if (!scene.answers.length) $('next').classList.remove('d-none');
+  }
+
+  function choose(scene, answer, btn) {
+    const saved = save(scene, answer);
+    const fb = $('feedback');
+    fb.replaceChildren();
+    if (answer.correct) {
+      btn.classList.add('is-correct');
+      $('answers').querySelectorAll('button').forEach((b) => (b.disabled = true));
+      // "Richtig!", "Genau!" usw. am Anfang der Erklärung weglassen – steht schon in der Überschrift
+      const explanation = answer.explanation.replace(/^(Richtig|Genau|Super|Perfekt)[^.!?]{0,15}!\s+/, '');
+      const ok = feedback('correct', 'bi-check-circle-fill', 'Richtig!', explanation);
+      fb.append(ok);
+      saved.then((result) => showPoints(result, ok));
+      if (scene.lesson) fb.append(feedback('lesson', 'bi-lightbulb', 'Merke dir', scene.lesson));
+      $('next').classList.remove('d-none');
+      $('next').focus({ preventScroll: true, focusVisible: false });
+    } else {
+      btn.classList.add('is-wrong');
+      btn.disabled = true;
+      fb.append(feedback('wrong', 'bi-x-circle-fill', 'Nicht ganz', answer.explanation, 'Versuch es nochmal.'));
+    }
+    fb.scrollIntoView({ block: 'nearest' });
+  }
+
+  function confetti() {
+    const box = $('confetti');
+    box.replaceChildren();
+    const colors = [{{ cover.color|tojson }}, '#18181b', '#1d4ed8', '#15803d', '#d4d4d8'];
+    for (let i = 0; i < 90; i++) {
+      const p = el('span');
+      p.style.left = Math.random() * 100 + 'vw';
+      p.style.background = colors[i % colors.length];
+      p.style.animationDelay = Math.random() * 0.6 + 's';
+      p.style.animationDuration = 2 + Math.random() * 1.5 + 's';
+      box.append(p);
+    }
+    setTimeout(() => box.replaceChildren(), 4500);
+  }
+
+  function renderEnd() {
+    const list = $('lessons');
+    list.replaceChildren();
+    scenes.filter((s) => s.lesson).forEach((s) => {
+      const li = el('li');
+      li.append(icon('bi-check-circle-fill'), el('span', null, s.lesson));
+      list.append(li);
+    });
+    const pts = $('end-points');
+    pts.replaceChildren();
+    if (storyPoints > 0) {
+      const badge = el('span', 'tv-points fs-6');
+      badge.append(icon('bi-star-fill'), document.createTextNode(' +' + storyPoints + ' Punkte gesammelt'));
+      pts.append(badge);
+    } else {
+      pts.append(el('span', 'small tv-muted', 'Diese Geschichte hattest du schon gelöst – Punkte gibt es nur beim ersten Mal.'));
+    }
+    show('end');
+    confetti();
+  }
+
+  $('start').addEventListener('click', () => { index = 0; storyPoints = 0; renderScene(); show('scene'); });
+  $('restart').addEventListener('click', () => { index = 0; storyPoints = 0; renderScene(); show('scene'); });
+  $('next').addEventListener('click', () => {
+    index++;
+    if (index < scenes.length) { renderScene(); show('scene'); } else { renderEnd(); }
   });
+})();
 </script>
 {% endblock %}

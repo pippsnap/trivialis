@@ -49,10 +49,16 @@ class Config:
   ]
   # Authentication (Flask-Security): Compatibility
   SECURITY_ANONYMOUS_USER_DISABLED = True
+  # Nach Login/Logout auf die Startseite
+  SECURITY_POST_LOGIN_VIEW = '/stories/'
+  SECURITY_POST_LOGOUT_VIEW = '/'
+  # Logout per Link (GET) erlauben
+  SECURITY_LOGOUT_METHODS = ['GET', 'POST']
   # Authentication (Flask-Security): Login/Logout
   #SECURITY_LOGOUT_METHODS = ['Post']
   # Authentication (Flask-Security): Registerable
-  SECURITY_REGISTERABLE = True
+  # Kinder melden sich nur mit ihrem Vornamen auf der Startseite an (siehe main.index)
+  SECURITY_REGISTERABLE = False
   SECURITY_SEND_REGISTER_EMAIL = False # Make this dependent on environment (nonprod, prod)
   SECURITY_USERNAME_ENABLE = True
   SECURITY_USERNAME_REQUIRED = True # School kids don't necessarily have an email address
@@ -62,5 +68,5 @@ class Config:
   SECURITY_CHANGEABLE = True
   SECURITY_SEND_PASSWORD_CHANGE_EMAIL = False 
   # Authentication (Flask-Security): Recoverable
-  SECURITY_RECOVERABLE = True #  Verify implementation
+  SECURITY_RECOVERABLE = False
   SECURITY_SEND_PASSWORD_RESET_EMAIL = False 

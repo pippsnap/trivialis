@@ -1,26 +1,39 @@
 {% extends "base.html" %}
+{% block title %}Trivialis – Cybersecurity-Geschichten{% endblock %}
 {% block content %}
-<section class="d-flex justify-content-center">
-  <article class="card col-md-6 mt-4">
-    <h1 class="card-title text-center">{% block title %}{{ _('Wilkommen auf Trivialis') }}{% endblock %}</h1>
+<section class="container py-5 tv-hero">
+  <div class="row align-items-center g-5">
+    <div class="col-lg-6">
+      <span class="tv-eyebrow mb-3"><i class="bi bi-shield-lock"></i> Zukunftstag · Cybersecurity</span>
+      <h1 class="mb-3">Werde Internet&shy;detektiv.</h1>
+      <p class="lead mb-4">Erlebe kurze Geschichten und finde heraus, wie du dich vor Hackern, Betrügern und fiesen Tricks im Internet schützt.</p>
 
-    <div class="card-body">
-      <img class="card-img-top" src="{{ url_for('static', filename='image.jpg') }}" alt="Image">
-      <p class="card-text">{{ _('Willkommen bei der Lernplattform für Schulen zum Thema Sicherheitsbewusstsein') }}</p>
-      {% if current_user %}
-      <p class="card-text">{{ _('Gehe zu den verfügbaren Geschichten.') }}</p>
-      <div class="d-flex justify-content-between">
-        <a class="btn btn-secondary col-md-2" href="{{ url_for('security.logout') }}">{{ _fsdomain('Logout') }}</a>
-        <a class="btn btn-primary col-md-2" href="{{ url_for('story.stories') }}">{{ _('Stories') }}</a>
-      </div>
+      {% if current_user and current_user.is_authenticated %}
+        <div class="tv-card p-4">
+          <p class="fs-5 mb-3">Hallo <strong>{{ current_user.username }}</strong>, schön, dass du da bist.</p>
+          <a class="btn btn-primary btn-lg w-100" href="{{ url_for('story.stories') }}">Zu den Geschichten <i class="bi bi-arrow-right ms-1"></i></a>
+        </div>
       {% else %}
-      <p class="card-text">{{ _('Bitte nutze die Buttons unten, um dich zu registrieren oder einzuloggen, falls du noch kein Konto hast.') }}</p>
-      <div class="d-flex justify-content-between">
-        <a class="btn btn-secondary col-md-2" href="{{ url_for('security.register') }}">{{ _fsdomain('Register') }}</a>
-        <a class="btn btn-primary col-md-2" href="{{ url_for('security.login') }}">{{ _fsdomain('Login') }}</a>
-      </div>
+        <form method="post" class="tv-card p-4">
+          <label for="name" class="form-label fw-bold">Wie heisst du?</label>
+          <div class="d-flex flex-column flex-sm-row gap-2">
+            <input type="text" id="name" name="name" class="form-control form-control-lg {% if error %}is-invalid{% endif %}"
+                   placeholder="Dein Vorname" autocomplete="off" maxlength="32" autofocus required value="{{ request.form.get('name', '') }}">
+            <button type="submit" class="btn btn-primary btn-lg text-nowrap">Los geht's <i class="bi bi-arrow-right ms-1"></i></button>
+          </div>
+          {% if error %}<div class="invalid-feedback d-block mt-2">{{ error }}</div>{% endif %}
+          <p class="small tv-muted mt-3 mb-0">Du brauchst kein Passwort – dein Vorname genügt.</p>
+        </form>
       {% endif %}
     </div>
-  </article>
+    <div class="col-lg-6 d-none d-md-block">
+      <div class="tv-mosaic" aria-hidden="true">
+        {% for t in topics %}
+        <div class="tv-mosaic-tile" style="--cover: {{ t.color }}" title="{{ t.name }}"><i class="bi {{ t.icon }}"></i></div>
+        {% endfor %}
+      </div>
+      <p class="small tv-muted mt-3 mb-0 text-end">{{ topics|length }} Geschichten · Passwörter, Phishing, Fake News, KI und mehr</p>
+    </div>
+  </div>
 </section>
 {% endblock %}

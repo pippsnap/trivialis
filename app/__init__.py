@@ -10,19 +10,9 @@ babel = Babel()
 db = SQLAlchemy()
 migrate = Migrate()
 
-# get locale from browser
+# Die Seite ist nur auf Deutsch verfügbar
 def get_locale():
-  from app.models import Language, Profile
-  #language = request.accept_languages.best_match(current_app.config['LANGUAGES'])
-  language = 'en'
-  if Language.query.filter_by(isDefault=True).first():
-    language = Language.query.filter_by(isDefault=True).first().isoCode
-  if current_user:
-    profile = Profile.query.filter_by(userId=current_user.id).first()
-    language = Language.query.filter_by(id=profile.languageId).first().isoCode
-  if request.args.get('lang') and Language.query.filter_by(isoCode=request.args.get('lang')):
-    session['userLanguage'] = request.args.get('lang')
-  return session.get('userLanguage', language)
+  return 'de'
 
 def create_app(config_class):
   # Flask Initialisierung
@@ -68,6 +58,23 @@ def create_app(config_class):
   #############################################################
   # Register custom context processors                        #
   #############################################################
+  # CLI: Cybersecurity-Geschichten (neu) laden -> `flask --app run geschichten-laden`
+  @app.cli.command('geschichten-laden')
+  def load_stories():
+    """Ersetzt alle Geschichten durch die Cybersecurity-Geschichten."""
+    from app.main.setup import create_stories
+    stories = create_stories()
+    print(f'{len(stories)} Geschichten geladen.')
+
+  # Punktestand des angemeldeten Kindes für die Navigation
+  @app.context_processor
+  def points_processor():
+    from flask_security import current_user
+    if current_user and current_user.is_authenticated:
+      from app.story.scoring import user_points
+      return dict(my_points=user_points(current_user.id))
+    return dict(my_points=None)
+
   # Make languages available in jinja templates
   @app.context_processor
   def language_processor():

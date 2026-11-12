@@ -1,24 +1,49 @@
-import random, string
-from datetime import datetime
-from flask import flash, redirect, render_template, request, url_for
+import secrets
+from flask import flash, redirect, render_template, request, url_for, current_app
 from flask_babel import _
-from flask_security import auth_required, current_user
+from flask_security import current_user, hash_password, login_user
 
 from app import db
 from app.forms import RegisterSchoolForm, SetupForm
 from app.main import bp
 from app.models import Language, School, User, Story  # Stellen Sie sicher, dass das Story-Modell importiert wird
+from .content import STORIES
 from .setup import create_languages, create_roles, create_stories, create_tasks, create_users
 
-#Standard Route for Users
-@bp.route('/')
+#Startseite: Kinder melden sich nur mit ihrem Vornamen an
+@bp.route('/', methods=['GET', 'POST'])
 def index():
   # Redirect to setup page if no users are in database
-  users = User.query.all()
-  if not users:
+  if not User.query.first():
     return redirect(url_for('main.setup'), code=307)
-  return render_template('main/index.html')
-  
+
+  error = None
+  if request.method == 'POST':
+    name = ' '.join(request.form.get('name', '').split())[:32]
+    if len(name) < 2:
+      error = 'Bitte gib deinen Vornamen ein (mindestens 2 Buchstaben).'
+    else:
+      user = User.query.filter(db.func.lower(User.username) == name.lower()).first()
+      if user and (user.has_role('Admin') or user.has_role('Teacher')):
+        # Konten von Lehrpersonen/Admins brauchen ein Passwort
+        return redirect(url_for('security.login'))
+      if user and not user.active:
+        error = 'Dieser Name ist gesperrt. Bitte frag die Lehrperson.'
+      else:
+        if not user:
+          user = current_app.security.datastore.create_user(
+            username=name,
+            email=f'{secrets.token_hex(8)}@zukunftstag.invalid',
+            password=hash_password(secrets.token_urlsafe(16)),
+            roles=['User'],
+          )
+          db.session.commit()
+        login_user(user, remember=True)
+        db.session.commit()
+        return redirect(url_for('story.stories'))
+
+  return render_template('main/index.html', error=error, topics=STORIES)
+
 #Route for Setup
 @bp.route('/setup/', methods=['GET', 'POST'])
 def setup():

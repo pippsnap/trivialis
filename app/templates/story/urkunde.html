@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% block title %}Urkunde{% endblock %}
+{% block content %}
+<div class="container py-5">
+  <div class="d-flex justify-content-between align-items-center mb-3 no-print">
+    <a class="link-secondary text-decoration-none" href="{{ url_for('story.stories') }}"><i class="bi bi-arrow-left"></i> Alle Geschichten</a>
+    <button class="btn btn-dark-soft" onclick="window.print()"><i class="bi bi-printer me-1"></i> Drucken</button>
+  </div>
+
+  <article class="certificate mx-auto">
+    <div class="certificate-seal" aria-hidden="true"><i class="bi bi-shield-check"></i></div>
+    <span class="tv-eyebrow">Urkunde</span>
+    <h1 class="display-6 mt-1">Internetdetektiv{% if done|length >= total %} · Meisterstufe{% endif %}</h1>
+    <p class="fs-5 mt-4 mb-1 tv-muted">Hiermit wird bestätigt, dass</p>
+    <p class="certificate-name">{{ current_user.username }}</p>
+    <p class="fs-5">am Zukunftstag <strong>{{ done|length }} von {{ total }}</strong> Cybersecurity-Geschichten gelöst hat.</p>
+
+    <div class="certificate-badges my-4">
+      {% for s in done %}{% set c = cover(s) %}
+      <span class="certificate-badge" style="--cover: {{ c.color }}" title="{{ s.name }}"><i class="bi {{ c.icon }}"></i></span>
+      {% endfor %}
+    </div>
+
+    <div class="text-start mx-auto certificate-rules">
+      <p class="fw-bold mb-2">Meine 5 Regeln</p>
+      <ol class="mb-0">
+        <li>Passwörter und Codes bleiben geheim – für jedes Konto ein eigenes.</li>
+        <li>Bei Zeitdruck, Gewinnen und komischen Links: erst denken, dann klicken.</li>
+        <li>Persönliche Daten (Adresse, Schule, Fotos) teile ich nicht mit Fremden.</li>
+        <li>Erst prüfen, dann teilen – nicht alles im Internet ist wahr.</li>
+        <li>Wenn mir etwas komisch vorkommt, hole ich Hilfe bei einer erwachsenen Person.</li>
+      </ol>
+    </div>
+
+    <div class="d-flex justify-content-between mt-5 pt-3 small tv-muted">
+      <span>{{ today }}</span>
+      <span>Trivialis · Zukunftstag</span>
+    </div>
+  </article>
+</div>
+{% endblock %}
